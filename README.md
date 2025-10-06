@@ -1,5 +1,5 @@
 # chemistry-copilot
-Chemistry copilot that helps in visualizing and solving Stiochiometry problems
+Chemistry copilot that helps in visualizing and solving Stiochiometry problems. Try it at: https://chemistry-copilot.netlify.app/
 
 ## Overview
 

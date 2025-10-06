@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Periodic Table</title>
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .sidebar {
+            width: 270px; /* Increased width to accommodate search bar */
+            background-color: #f0f0f0;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            position: fixed;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .search-bar {
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(19, 55px); /* Increased width for better spacing */
+            grid-gap: 5px;
+            justify-content: center;
+            margin-left: 370px; /* Adjusted based on updated sidebar width */
+            margin-top: 100px;
+        }
+        .element {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: black;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, background-color 0.2s;
+            position: relative;
+        }
+        .element:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+        .pop-out {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+        .highlight {
+            outline: 3px solid #000000;
+        }
+        .tooltip-content {
+            font-size: 14px;
+            line-height: 1.5;
+            height: 200px;
+            background-color: #ffffff;
+        }
+        /* Element Categories Colors */
+        .H { background-color: #00d0fa; }
+        .He { background-color: #facc00; }
+        .Li { background-color: #fa00dd; }
+        .Be { background-color: #b700fa; }
+        .B { background-color: #00fa4f; }
+        .C { background-color: #00d0fa; }
+        .N { background-color: #00d0fa; }
+        .O { background-color: #00d0fa; }
+        .F { background-color: #ffb300; }
+        .Ne { background-color: #facc00; }
+        .Na { background-color: #fa00dd; }
+        .Mg { background-color: #b700fa; }
+        .Al { background-color: #fa6800; }
+        .Si { background-color: #00fa4f; }
+        .P { background-color: #00d0fa; }
+        .S { background-color: #00d0fa; }
+        .Cl { background-color: #ffb300; }
+        .Ar { background-color: #facc00; }
+        .K { background-color: #fa00dd; }
+        .Ca { background-color: #b700fa; }
+        .Sc { background-color: #00fae9; }
+        .Ti { background-color: #00fae9; }
+        .V { background-color: #00fae9; }
+        .Cr { background-color: #00fae9; }
+        .Mn { background-color: #00fae9; }
+        .Fe { background-color: #00fae9; }
+        .Co { background-color: #00fae9; }
+        .Ni { background-color: #00fae9; }
+        .Cu { background-color: #00fae9; }
+        .Zn { background-color: #00fae9; }
+        .Ga { background-color: #fa6800; }
+        .Ge { background-color: #00fa4f; }
+        .As { background-color: #00fa4f; }
+        .Se { background-color: #00d0fa; }
+        .Br { background-color: #ffb300; }
+        .Kr { background-color: #facc00; }
+        .Rb { background-color: #fa00dd; }
+        .Sr { background-color: #b700fa; }
+        .Y { background-color: #00fae9; }
+        .Zr { background-color: #00fae9; }
+        .Nb { background-color: #00fae9; }
+        .Mo { background-color: #00fae9; }
+        .Tc { background-color: #00fae9; }
+        .Ru { background-color: #00fae9; }
+        .Rh { background-color: #00fae9; }
+        .Pd { background-color: #00fae9; }
+        .Ag { background-color: #00fae9; }
+        .Cd { background-color: #00fae9; }
+        .In { background-color: #fa6800; }
+        .Sn { background-color: #fa6800; }
+        .Sb { background-color: #00fa4f; }
+        .Te { background-color: #00fa4f; }
+        .I { background-color: #ffb300; }
+        .Xe { background-color: #facc00; }
+        .G1 { background-color: #c0c9d1; }
+        .G2 { background-color: #c0c9d1; }
+        .G3 { background-color: #c0c9d1; }
+        .G4 { background-color: #c0c9d1; }
+        .G5 { background-color: #c0c9d1; }
+        .G6 { background-color: #c0c9d1; }
+        .G7 { background-color: #c0c9d1; }
+        .G8 { background-color: #c0c9d1; }
+        .P1 { background-color: #c0c9d1; }
+        .P2 { background-color: #c0c9d1; }
+        .P3 { background-color: #c0c9d1; }
+        .P4 { background-color: #c0c9d1; }
+        .P5 { background-color: #c0c9d1; }
+        .P6 { background-color: #c0c9d1; }
+        .P7 { background-color: #c0c9d1; }
+        .P8 { background-color: #c0c9d1; }
+
+        
+        /* Add more element category colors as needed */
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Search for an Element</h2>
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Enter element name or symbol...">
+        </div>
+        <h2>Element Information</h2>
+        <div class="tooltip-content" id="tooltip-content">
+            Hover over an element to see its details here.
+        </div>
+        <h2>Legend</h2>
+        <ul>
+            <li><span class="H" style="display:inline-block;width:20px;height:20px;"></span> Hydrogen</li>
+            <li><span class="He" style="display:inline-block;width:20px;height:20px;"></span> Noble Gases</li>
+            <li><span class="Li" style="display:inline-block;width:20px;height:20px;"></span> Alkali Metals</li>
+            <li><span class="Be" style="display:inline-block;width:20px;height:20px;"></span> Alkaline Earth Metals</li>
+            <li><span class="B" style="display:inline-block;width:20px;height:20px;"></span> Metalloids</li>
+            <li><span class="C" style="display:inline-block;width:20px;height:20px;"></span> Other Nonmetals</li>
+            <li><span class="F" style="display:inline-block;width:20px;height:20px;"></span> Halogens</li>
+            <li><span class="Al" style="display:inline-block;width:20px;height:20px;"></span> Post-transition Metals</li>
+            <li><span class="Sc" style="display:inline-block;width:20px;height:20px;"></span> Transition Metals</li>
+        </ul>
+    </div>
+    <div class="periodic-table">
+        <!-- Example Element Structure with Additional Data Attributes -->
+        <h1>The Periodic Table</h1>
+        <div class="1" style="grid-column: 1;"></div>
+        <div class="element G1" style="grid-column: 2;">G 1</div>
+        <div class="element G2" style="grid-column: 3;">G 2</div>
+        <div class="1" style="grid-column: 4;"></div>
+        <div class="1" style="grid-column: 5;"></div>
+        <div class="1" style="grid-column: 6;"></div>
+        <div class="1" style="grid-column: 7;"></div>
+        <div class="1" style="grid-column: 8;"></div>
+        <div class="1" style="grid-column: 9;"></div>
+        <div class="1" style="grid-column: 10;"></div>
+        <div class="1" style="grid-column: 11;"></div>
+        <div class="1" style="grid-column: 12;"></div>
+        <div class="1" style="grid-column: 13;"></div>
+        <div class="element G3" style="grid-column: 14;">G 3</div>
+        <div class="element G4" style="grid-column: 15;">G 4</div>
+        <div class="element G5" style="grid-column: 16;">G 5</div>
+        <div class="element G6" style="grid-column: 17;">G 6</div>
+        <div class="element G7" style="grid-column: 18;">G 7</div>
+        <div class="element G8" style="grid-column: 19;">G 8</div>
+        <div class="element P1" style="grid-column: 1;">P 1</div>
+        <div class="element H" data-name="Hydrogen" data-symbol="H" data-atomic-number="1" data-info="1st element in the Periodic Table! Atomic mass: 1<br>Melting Point: -259.1°C, Boiling Point: -252.9°C<br>Isotopes: H-1, H-2 (Deuterium), H-3 (Tritium)" style="grid-column: 2;">H</div>
+        <div class="element He" data-name="Helium" data-symbol="He" data-atomic-number="2" data-info="2nd element in the Periodic Table! Atomic mass: 4<br>Melting Point: -272.2°C, Boiling Point: -268.9°C<br>Isotopes: He-3, He-4" style="grid-column: 19;">He</div>
+        <div class="element P2" style="grid-column: 1;">P 2</div>
+        <div class="element Li" data-name="Lithium" data-symbol="Li" data-atomic-number="3" data-info="<br><b>Lithium</b><br><br>Atomic number: 3<br>Atomic mass: 6<br>Melting Point: 180.5°C<br>Boiling Point: 1342°C<br>Isotopes: Li-6, Li-7" style="grid-column: 2;">Li</div>
+        <div class="element Be" data-name="Beryllium" data-symbol="Be" data-atomic-number="4" data-info="4th element in the Periodic Table! Atomic mass: 9<br>Melting Point: 1287°C, Boiling Point: 2469°C<br>Isotopes: Be-9" style="grid-column: 3;">Be</div>
+        <div class="element B" data-name="Boron" data-symbol="B" data-atomic-number="5" data-info="5th element in the Periodic Table! Atomic mass: 10<br>Melting Point: 2076°C, Boiling Point: 3927°C<br>Isotopes: B-10, B-11" style="grid-column: 14;">B</div>
+        <div class="element C" data-name="Carbon" data-symbol="C" data-atomic-number="6" data-info="6th element in the Periodic Table! Atomic mass: 12<br>Melting Point: 3550°C, Boiling Point: 4827°C<br>Isotopes: C-12, C-13, C-14" style="grid-column: 15;">C</div>
+        <div class="element N" data-name="Nitrogen" data-symbol="N" data-atomic-number="7" data-info="7th element in the Periodic Table! Atomic mass: 14<br>Melting Point: -210°C, Boiling Point: -195.8°C<br>Isotopes: N-14, N-15" style="grid-column: 16;">N</div>
+        <div class="element O" data-name="Oxygen" data-symbol="O" data-atomic-number="8" data-info="8th element in the Periodic Table! Atomic mass: 16<br>Melting Point: -218.8°C, Boiling Point: -183°C<br>Isotopes: O-16, O-17, O-18" style="grid-column: 17;">O</div>
+        <div class="element F" data-name="Fluorine" data-symbol="F" data-atomic-number="9" data-info="9th element in the Periodic Table! Atomic mass: 18<br>Melting Point: -219.6°C, Boiling Point: -188.1°C<br>Isotopes: F-19" style="grid-column: 18;">F</div>
+        <div class="element Ne" data-name="Neon" data-symbol="Ne" data-atomic-number="10" data-info="10th element in the Periodic Table! Atomic mass: 20<br>Melting Point: -248.6°C, Boiling Point: -246.1°C<br>Isotopes: Ne-20, Ne-21, Ne-22" style="grid-column: 19;">Ne</div>
+        <div class="element P3" style="grid-column: 1;">P 3</div>
+        <div class="element Na" data-name="Sodium" data-symbol="Na" data-atomic-number="11" data-info="11th element in the Periodic Table! Atomic mass: 22<br>Melting Point: 97.8°C, Boiling Point: 883°C<br>Isotopes: Na-23" style="grid-column: 2;">Na</div>
+        <div class="element Mg" data-name="Magnesium" data-symbol="Mg" data-atomic-number="12" data-info="12th element in the Periodic Table! Atomic mass: 24<br>Melting Point: 650°C, Boiling Point: 1091°C<br>Isotopes: Mg-24, Mg-25, Mg-26" style="grid-column: 3;">Mg</div>
+        <div class="element Al" data-name="Aluminum" data-symbol="Al" data-atomic-number="13" data-info="13th element in the Periodic Table! Atomic mass: 26<br>Melting Point: 660.3°C, Boiling Point: 2470°C<br>Isotopes: Al-27" style="grid-column: 14;">Al</div>
+        <div class="element Si" data-name="Silicon" data-symbol="Si" data-atomic-number="14" data-info="14th element in the Periodic Table! Atomic mass: 28<br>Melting Point: 1414°C, Boiling Point: 3265°C<br>Isotopes: Si-28, Si-29, Si-30" style="grid-column: 15;">Si</div>
+        <div class="element P" data-name="Phosphorus" data-symbol="P" data-atomic-number="15" data-info="15th element in the Periodic Table! Atomic mass: 30<br>Melting Point: 44.2°C, Boiling Point: 280°C<br>Isotopes: P-31" style="grid-column: 16;">P</div>
+        <div class="element S" data-name="Sulfur" data-symbol="S" data-atomic-number="16" data-info="16th element in the Periodic Table! Atomic mass: 32<br>Melting Point: 115.2°C, Boiling Point: 444.6°C<br>Isotopes: S-32, S-33, S-34, S-36" style="grid-column: 17;">S</div>
+        <div class="element Cl" data-name="Chlorine" data-symbol="Cl" data-atomic-number="17" data-info="17th element in the Periodic Table! Atomic mass: 35<br>Melting Point: -101.5°C, Boiling Point: -34.04°C<br>Isotopes: Cl-35, Cl-37" style="grid-column: 18;">Cl</div>
+        <div class="element Ar" data-name="Argon" data-symbol="Ar" data-atomic-number="18" data-info="18th element in the Periodic Table! Atomic mass: 40<br>Melting Point: -189.4°C, Boiling Point: -185.8°C<br>Isotopes: Ar-36, Ar-38, Ar-40" style="grid-column: 19;">Ar</div>
+        <div class="element P4" style="grid-column: 1;">P 4</div>
+        <div class="element K" data-name="Potassium" data-symbol="K" data-atomic-number="19" data-info="19th element in the Periodic Table! Atomic mass: 39<br>Melting Point: 63.5°C, Boiling Point: 759°C<br>Isotopes: K-39, K-40, K-41" style="grid-column: 2;">K</div>
+        <div class="element Ca" data-name="Calcium" data-symbol="Ca" data-atomic-number="20" data-info="20th element in the Periodic Table! Atomic mass: 40<br>Melting Point: 842°C, Boiling Point: 1484°C<br>Isotopes: Ca-40, Ca-42, Ca-43, Ca-44, Ca-46, Ca-48" style="grid-column: 3;">Ca</div>
+        <div class="element Sc" data-name="Scandium" data-symbol="Sc" data-atomic-number="21" data-info="21st element in the Periodic Table! Atomic mass: 44<br>Melting Point: 1541°C, Boiling Point: 2836°C<br>Isotopes: Sc-45" style="grid-column: 4;">Sc</div>
+        <div class="element Ti" data-name="Titanium" data-symbol="Ti" data-atomic-number="22" data-info="22nd element in the Periodic Table! Atomic mass: 47<br>Melting Point: 1668°C, Boiling Point: 3287°C<br>Isotopes: Ti-46, Ti-47, Ti-48, Ti-49, Ti-50" style="grid-column: 5;">Ti</div>
+        <div class="element V" data-name="Vanadium" data-symbol="V" data-atomic-number="23" data-info="23rd element in the Periodic Table! Atomic mass: 50<br>Melting Point: 1910°C, Boiling Point: 3407°C<br>Isotopes: V-50, V-51" style="grid-column: 6;">V</div>
+        <div class="element Cr" data-name="Chromium" data-symbol="Cr" data-atomic-number="24" data-info="24th element in the Periodic Table! Atomic mass: 51<br>Melting Point: 1907°C, Boiling Point: 2671°C<br>Isotopes: Cr-50, Cr-52, Cr-53, Cr-54" style="grid-column: 7;">Cr</div>
+        <div class="element Mn" data-name="Manganese" data-symbol="Mn" data-atomic-number="25" data-info="25th element in the Periodic Table! Atomic mass: 54<br>Melting Point: 1246°C, Boiling Point: 2061°C<br>Isotopes: Mn-55" style="grid-column: 8;">Mn</div>
+        <div class="element Fe" data-name="Iron" data-symbol="Fe" data-atomic-number="26" data-info="26th element in the Periodic Table! Atomic mass: 55<br>Melting Point: 1538°C, Boiling Point: 2862°C<br>Isotopes: Fe-54, Fe-56, Fe-57, Fe-58" style="grid-column: 9;">Fe</div>
+        <div class="element Co" data-name="Cobalt" data-symbol="Co" data-atomic-number="27" data-info="27th element in the Periodic Table! Atomic mass: 58<br>Melting Point: 1495°C, Boiling Point: 2927°C<br>Isotopes: Co-59" style="grid-column: 10;">Co</div>
+        <div class="element Ni" data-name="Nickel" data-symbol="Ni" data-atomic-number="28" data-info="28th element in the Periodic Table! Atomic mass: 58<br>Melting Point: 1455°C, Boiling Point: 2730°C<br>Isotopes: Ni-58, Ni-60, Ni-61, Ni-62, Ni-64" style="grid-column: 11;">Ni</div>
+        <div class="element Cu" data-name="Copper" data-symbol="Cu" data-atomic-number="29" data-info="29th element in the Periodic Table! Atomic mass: 63<br>Melting Point: 1084°C, Boiling Point: 2562°C<br>Isotopes: Cu-63, Cu-65" style="grid-column: 12;">Cu</div>
+        <div class="element Zn" data-name="Zinc" data-symbol="Zn" data-atomic-number="30" data-info="30th element in the Periodic Table! Atomic mass: 65<br>Melting Point: 419.5°C, Boiling Point: 907°C<br>Isotopes: Zn-64, Zn-66, Zn-67, Zn-68, Zn-70" style="grid-column: 13;">Zn</div>
+        <div class="element Ga" data-name="Gallium" data-symbol="Ga" data-atomic-number="31" data-info="31st element in the Periodic Table! Atomic mass: 69<br>Melting Point: 29.8°C, Boiling Point: 2204°C<br>Isotopes: Ga-69, Ga-71" style="grid-column: 14;">Ga</div>
+        <div class="element Ge" data-name="Germanium" data-symbol="Ge" data-atomic-number="32" data-info="32nd element in the Periodic Table! Atomic mass: 72<br>Melting Point: 938.3°C, Boiling Point: 2833°C<br>Isotopes: Ge-70, Ge-72, Ge-73, Ge-74, Ge-76" style="grid-column: 15;">Ge</div>
+        <div class="element As" data-name="Arsenic" data-symbol="As" data-atomic-number="33" data-info="33rd element in the Periodic Table! Atomic mass: 74<br>Melting Point: 816.8°C, Boiling Point: 614°C<br>Isotopes: As-75" style="grid-column: 16;">As</div>
+        <div class="element Se" data-name="Selenium" data-symbol="Se" data-atomic-number="34" data-info="34th element in the Periodic Table! Atomic mass: 78<br>Melting Point: 221°C, Boiling Point: 685°C<br>Isotopes: Se-74, Se-76, Se-77, Se-78, Se-80, Se-82" style="grid-column: 17;">Se</div>
+        <div class="element Br" data-name="Bromine" data-symbol="Br" data-atomic-number="35" data-info="35th element in the Periodic Table! Atomic mass: 79<br>Melting Point: -7.2°C, Boiling Point: 59.5°C<br>Isotopes: Br-79, Br-81" style="grid-column: 18;">Br</div>
+        <div class="element Kr" data-name="Krypton" data-symbol="Kr" data-atomic-number="36" data-info="36th element in the Periodic Table! Atomic mass: 84<br>Melting Point: -157.4°C, Boiling Point: -153.4°C<br>Isotopes: Kr-78, Kr-80, Kr-82, Kr-83, Kr-84, Kr-86" style="grid-column: 19;">Kr</div>
+        <div class="element P5" style="grid-column: 1;">P 5</div>
+        <div class="element Rb" data-name="Rubydium" data-symbol="Rb" data-atomic-number="37" data-info="37th element in the Periodic Table!" style="grid-column: 2;">Rb</div>
+        <div class="element Sr" data-name="Strontium" data-symbol="Sr" data-atomic-number="38" data-info="38th element in the Periodic Table!" style="grid-column: 3;">Sr</div>
+        <div class="element Y" data-name="Yttrium" data-symbol="Y" data-atomic-number="39" data-info="39th element in the Periodic Table!" style="grid-column: 4;">Y</div>
+        <div class="element Zr" data-name="Zirconium" data-symbol="Zr" data-atomic-number="40" data-info="40th element in the Periodic Table!" style="grid-column: 5;">Zr</div>
+        <div class="element Nb" data-name="Vanadium" data-symbol="Nb" data-atomic-number="41" data-info="41st element in the Periodic Table!" style="grid-column: 6;">Nb</div>
+        <div class="element Mo" data-name="Chromium" data-symbol="Mo" data-atomic-number="42" data-info="42nd element in the Periodic Table!" style="grid-column: 7;">Mo</div>
+        <div class="element Tc" data-name="Manganese" data-symbol="Tc" data-atomic-number="43" data-info="43rd element in the Periodic Table!" style="grid-column: 8;">Tc</div>
+        <div class="element Ru" data-name="Iron" data-symbol="Ru" data-atomic-number="44" data-info="44th element in the Periodic Table!" style="grid-column: 9;">Ru</div>
+        <div class="element Rh" data-name="Cobalt" data-symbol="Rh" data-atomic-number="45" data-info="45th element in the Periodic Table!" style="grid-column: 10;">Rh</div>
+        <div class="element Pd" data-name="Nickel" data-symbol="Pd" data-atomic-number="46" data-info="46th element in the Periodic Table!" style="grid-column: 11;">Pd</div>
+        <div class="element Ag" data-name="Copper" data-symbol="Ag" data-atomic-number="47" data-info="47th element in the Periodic Table!" style="grid-column: 12;">Ag</div>
+        <div class="element Cd" data-name="Zinc" data-symbol="Cd" data-atomic-number="48" data-info="48th element in the Periodic Table!" style="grid-column: 13;">Cd</div>
+        <div class="element In" data-name="Gallium" data-symbol="In" data-atomic-number="49" data-info="49th element in the Periodic Table!" style="grid-column: 14;">In</div>
+        <div class="element Sn" data-name="Germanium" data-symbol="Sn" data-atomic-number="50" data-info="50th element in the Periodic Table!" style="grid-column: 15;">Sn</div>
+        <div class="element Sb" data-name="Arsenic" data-symbol="Sb" data-atomic-number="51" data-info="51st element in the Periodic Table!" style="grid-column: 16;">Sb</div>
+        <div class="element Te" data-name="Selenium" data-symbol="Te" data-atomic-number="52" data-info="52nd element in the Periodic Table!" style="grid-column: 17;">Te</div>
+        <div class="element I" data-name="Bromine" data-symbol="I" data-atomic-number="53" data-info="53rd element in the Periodic Table!" style="grid-column: 18;">I</div>
+        <div class="element Xe" data-name="Xenon" data-symbol="Xe" data-atomic-number="54" data-info="54th element in the Periodic Table!" style="grid-column: 19;">Xe</div>
+        <!-- Continue adding elements as needed, ensuring each has data-name, data-symbol, and data-atomic-number attributes -->
+    </div>
+    <script>
+        // Display element information on hover
+        const elements = document.querySelectorAll('.element');
+        const tooltipContent = document.getElementById('tooltip-content');
+        const searchInput = document.getElementById('search-input');
+
+        elements.forEach(element => {
+            element.addEventListener('mouseover', () => {
+                tooltipContent.innerHTML = element.dataset.info;
+            });
+            element.addEventListener('mouseout', () => {
+                tooltipContent.innerHTML = 'Hover over an element to see its details here.';
+            });
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            // Remove previous highlights
+            elements.forEach(el => el.classList.remove('highlight'));
+            elements.forEach(el => el.classList.remove('pop-out'));
+
+            // Grey out all elements
+            elements.forEach(el => el);
+
+            if (query === '') {
+                return; // Do nothing if query is empty
+            }
+            // Search for matching elements
+            count = 0;
+            found = null;
+            elements.forEach(el => {
+                if (el.dataset.name) {
+                    const name = el.dataset.name.toLowerCase();
+                    const symbol = el.dataset.symbol.toLowerCase();
+                    const atomicNumber = el.dataset.atomicNumber.toLowerCase();
+                    if (name.includes(query) || symbol.includes(query) || atomicNumber == (query)) {
+                        el.classList.add('highlight');
+                        // el.classList.add('pop-out')
+                        // Optionally, scroll into view
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        count = count + 1;
+                        found = el;
+                    }
+                }
+            });
+            if (count == 1) {
+                tooltipContent.innerHTML = found.dataset.info;
+            }
+            else {
+                tooltipContent.innerHTML = 'Hover over an element to see its details here.';
+            }
+        });
+    </script>
+</body>
+</html>

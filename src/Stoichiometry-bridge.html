@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stoichiometry Stepper (Stable)</title>
+<style>
+  :root{
+    --bg:#f7f7fb; --card:#fff; --ink:#222; --muted:#666; --brand:#3a7afe;
+    --ok:#28a745; --warn:#ff9f1a; --lim:#d12c2c; --barH:220px;
+  }
+  html,body{background:var(--bg); color:var(--ink); font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; margin:0}
+  .wrap{max-width:1100px; margin:24px auto; padding:0 16px}
+  h1{font-size:22px; margin:0 0 8px}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  input[type="text"]{padding:8px 10px; border:1px solid #ccc; border-radius:8px; min-width:320px}
+  button{padding:8px 12px; border:0; border-radius:8px; background:var(--brand); color:#fff; cursor:pointer}
+  button.secondary{background:#e6e9f4; color:#1a2}
+  button:disabled{opacity:.45; cursor:not-allowed}
+  .card{background:var(--card); border:1px solid #e5e7ef; border-radius:12px; padding:12px}
+  table{border-collapse:collapse; width:100%}
+  th,td{border-bottom:1px solid #eef0f5; padding:8px; text-align:center}
+  th{background:#f3f5fb; font-weight:600}
+  td[contenteditable="true"], input.mass{background:#fffceb}
+  td.bad{color:#b00}
+  td.good{color:#0a6}
+  td.hl{background:#fff8c4; box-shadow:inset 0 0 0 2px #ffe16a}
+  .muted{color:var(--muted)}
+  #flow{display:flex; flex-direction:column; gap:6px; max-height:240px; overflow:auto}
+  .flow-step{background:#f7f9ff; border:1px dashed #cdd8ff; border-radius:8px; padding:8px}
+  .viz{display:flex; gap:18px; align-items:flex-end; height:var(--barH)}
+  .bar{width:60px; border-radius:6px 6px 0 0; display:flex; align-items:flex-end; justify-content:center; color:#fff; font-size:12px; padding-bottom:4px}
+  .reactant{background:#5a78ff}
+  .product{background:#2fb26f}
+  .limiting{outline:3px solid var(--lim)}
+  .excess-used{background:#ffb74d}
+  .excess-used2{background:linear-gradient(to top, rgba(255,159,26,.95) 0 70%, rgba(255,159,26,.65) 70% 100%)}
+  .legend{display:flex; gap:16px; align-items:center; font-size:13px}
+  .dot{width:12px; height:12px; border-radius:3px; display:inline-block; vertical-align:middle; margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Stoichiometry Stepper</h1>
+  <p class="muted">Enter a balanced equation (e.g. <code>2 Na + Cl2 -> 2 NaCl</code>). Fill known masses (g) for reactants and/or a product. Use <code>?</code> for unknowns. Click <b>Build Table</b>, then step through.</p>
+
+  <div class="row" style="margin-bottom:10px">
+    <input id="equation" type="text" value="N2 + 3 H2 -> 2 NH3" />
+    <button id="buildBtn">Build Table</button>
+    <button id="nextBtn" disabled>Next Step</button>
+    <button id="resetBtn" class="secondary">Reset Stepper</button>
+    <button id="newBtn" class="secondary">New Equation</button>
+  </div>
+
+  <div id="tableCard" class="card" aria-live="polite"></div>
+
+  <div class="row" style="margin-top:12px">
+    <div class="card" style="flex:2">
+      <h3 style="margin:4px 0 8px">Step-by-step</h3>
+      <div id="flow"></div>
+    </div>
+    <div class="card" style="flex:1">
+      <h3 style="margin:4px 0 8px">Visualization</h3>
+      <div class="legend" style="margin-bottom:6px">
+        <span><i class="dot" style="background:#5a78ff"></i>reactant</span>
+        <span><i class="dot" style="background:#2fb26f"></i>product</span>
+        <span><i class="dot" style="background:#ffb74d"></i>used</span>
+        <span><i class="dot" style="background:none; outline:3px solid #d12c2c"></i>limiting</span>
+      </div>
+      <div id="viz" class="viz"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Data ========== */
+// Expanded element set (common general chemistry set)
+const AM = {
+  H:1.008, He:4.003, Li:6.94, Be:9.012, B:10.81, C:12.011, N:14.007, O:15.999, F:18.998, Ne:20.180,
+  Na:22.990, Mg:24.305, Al:26.982, Si:28.085, P:30.974, S:32.06, Cl:35.45, Ar:39.948,
+  K:39.098, Ca:40.078, Sc:44.956, Ti:47.867, V:50.942, Cr:51.996, Mn:54.938, Fe:55.845, Co:58.933, Ni:58.693,
+  Cu:63.546, Zn:65.38, Ga:69.723, Ge:72.630, As:74.922, Se:78.971, Br:79.904, Kr:83.798,
+  Rb:85.468, Sr:87.62, Ag:107.8682, Cd:112.414, Sn:118.710, I:126.904, Ba:137.327, Au:196.967, Hg:200.592, Pb:207.2
+};
+// quick common compounds (optional shortcut)
+const COMPOUND = { H2:2.016, O2:31.998, N2:28.014, Cl2:70.90, H2O:18.015, CO2:44.01, NH3:17.031, NaCl:58.44 };
+
+/* ========== Helpers ========== */
+const q = s => document.querySelector(s);
+const qa = s => Array.from(document.querySelectorAll(s));
+
+function addFlow(msg){
+  const d=document.createElement('div');
+  d.className='flow-step';
+  d.textContent=msg;
+  q('#flow').appendChild(d);
+  q('#flow').scrollTop = q('#flow').scrollHeight;
+}
+function clearFlow(){ q('#flow').innerHTML=''; }
+
+/* Robust molar mass (no nested parentheses) */
+function molarMass(formula){
+  if(!formula) return NaN;
+  if(COMPOUND[formula]) return COMPOUND[formula];
+  const rx = /([A-Z][a-z]?)(\d*)/g;
+  let m, total=0, seen=false;
+  while((m = rx.exec(formula)) !== null){
+    seen=true;
+    const el=m[1], cnt=m[2] ? parseInt(m[2],10) : 1;
+    if(!(el in AM)) return NaN;
+    total += AM[el]*cnt;
+  }
+  return seen ? total : NaN;
+}
+
+/* Parse equation: "2Na + Cl2 -> 2NaCl" or with spaces/→/=/>= */
+function parseEquation(eq){
+  const out = { reactants:[], products:[] };
+  if(!eq) return out;
+  const parts = eq.split(/\s*(?:->|→|=>|=)\s*/);
+  if(parts.length < 2) return out;
+
+  function parseSide(side){
+    return side.split(/\s*\+\s*/).map(term=>{
+      const t = term.trim();
+      let coeff = 1, name = t;
+
+      // Try "2 H2"
+      let m = t.match(/^(\d+)\s+(.+)$/);
+      if(m){ coeff=parseInt(m[1],10); name=m[2].trim(); }
+      else{
+        // Try "2H2"
+        m = t.match(/^(\d+)([A-Za-z(].*)$/);
+        if(m){ coeff=parseInt(m[1],10); name=m[2].trim(); }
+        else {
+          coeff = 1; name = t;
+        }
+      }
+      return { coeff, name };
+    }).filter(x=>x.name.length>0);
+  }
+
+  out.reactants = parseSide(parts[0]);
+  out.products  = parseSide(parts.slice(1).join(' ')); // in case of stray arrows on RHS
+  return out;
+}
+
+/* Safe parse from a TD input content '?', '' -> NaN */
+function safeParse(v){
+  if(v===null || v===undefined) return NaN;
+  const s = String(v).trim();
+  if(!s || s==='?') return NaN;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/* ========== Table Builder ========== */
+function buildTable(eq){
+  if(!eq.reactants.length || !eq.products.length){
+    q('#tableCard').innerHTML = '<div class="muted">Could not parse equation. Use an arrow like <code>-></code>, e.g., <code>2 H2 + O2 -> 2 H2O</code>.</div>';
+    return;
+  }
+  let html = `
+  <table id="stoich">
+    <thead>
+      <tr><th>Type</th><th>Name</th><th>Mass (g)</th><th>Molar Mass (g/mol)</th><th>Moles Available (mol)</th><th>Molar Ratio (The Bridge)</th><th>Moles Used/Produced (mol)</th></tr>
+    </thead>
+    <tbody>
+  `;
+  eq.reactants.forEach(r=>{
+    html += `
+      <tr data-type="reactant" data-coeff="${r.coeff}">
+        <td>Reactant</td>
+        <td class="name">${r.name}</td>
+        <td class="mass" contenteditable="true">?</td>
+        <td class="mm">?</td>
+        <td class="moles">?</td>
+        <td>${r.coeff}</td>
+        <td class="mUsed">?</td>
+      </tr>`;
+  });
+  eq.products.forEach(p=>{
+    html += `
+      <tr data-type="product" data-coeff="${p.coeff}">
+        <td>Product</td>
+        <td class="name">${p.name}</td>
+        <td class="mass" contenteditable="true">?</td>
+        <td class="mm">?</td>
+        <td class="moles">?</td>
+        <td>${p.coeff}</td>
+        <td class="mUsed">?</td>
+      </tr>`;
+  });
+  html += `</tbody></table>`;
+  q('#tableCard').innerHTML = html;
+}
+
+/* ========== Step Engine ========== */
+let steps = [];
+let stepIndex = 0;
+let limitingRow = null;
+
+function makeSteps(eq){
+  const rows = qa('#stoich tbody tr');
+  const st = [];
+
+  // 1) molar mass for all species
+  rows.forEach(row => st.push({action:'mm', row}));
+
+  // 2) reactant moles from mass (if given)
+  rows.forEach(row => {
+    if(row.dataset.type==='reactant') st.push({action:'molesFromMass', row});
+  });
+
+  // 3) product targets (if user typed product mass)
+  rows.forEach(row => {
+    if(row.dataset.type==='product') st.push({action:'productTarget', row, eq});
+  });
+
+  // 4) backfill missing reactants from any product target (first target found)
+  st.push({action:'backfillReactantsFromTarget', eq});
+
+  // 5) limiting reagent
+  st.push({action:'limiting', eq});
+
+  // 6) compute products from limiting reagent
+  rows.forEach(row => {
+    if(row.dataset.type==='product') st.push({action:'productFromLimiting', row, eq});
+  });
+
+  return st;
+}
+
+function highlightCell(cell){
+  qa('td').forEach(td => td.classList.remove('hl'));
+  if(cell) cell.classList.add('hl');
+}
+
+function nextStep(){
+  if(stepIndex >= steps.length){ q('#nextBtn').disabled = true; return; }
+  const s = steps[stepIndex++];
+
+  if(!q('#stoich')){ addFlow('Build the table first.'); stepIndex = steps.length; return; }
+
+  switch(s.action){
+    case 'mm': {
+      const name = s.row.querySelector('.name').textContent.trim();
+      const mmCell = s.row.querySelector('.mm');
+      const mm = molarMass(name);
+      mmCell.textContent = Number.isFinite(mm) ? mm.toFixed(3) : '?';
+      highlightCell(mmCell);
+      addFlow(`Molar mass of ${name}: ${Number.isFinite(mm) ? mm.toFixed(3)+' g/mol' : 'unknown (unrecognized element or parentheses)'}`
+      );
+      break;
+    }
+    case 'molesFromMass': {
+      const mm = safeParse(s.row.querySelector('.mm').textContent);
+      const mass = safeParse(s.row.querySelector('.mass').textContent);
+      const molesCell = s.row.querySelector('.moles');
+      let msg = `${s.row.querySelector('.name').textContent}: `;
+
+      if(!Number.isFinite(mass)){
+        msg += 'no mass provided.';
+        addFlow(msg);
+        break;
+      }
+      if(!Number.isFinite(mm) || mm<=0){
+        msg += 'molar mass unknown → cannot convert mass to moles.';
+        addFlow(msg);
+        break;
+      }
+      const n = mass/mm;
+      molesCell.textContent = n.toFixed(4);
+      highlightCell(molesCell);
+      addFlow(`${s.row.querySelector('.name').textContent}: moles = ${mass} / ${mm.toFixed(3)} = ${n.toFixed(4)} mol`);
+      break;
+    }
+    case 'productTarget': {
+      const name = s.row.querySelector('.name').textContent.trim();
+      const mm = safeParse(s.row.querySelector('.mm').textContent);
+      const mMass = safeParse(s.row.querySelector('.mass').textContent);
+      if(Number.isFinite(mMass) && Number.isFinite(mm) && mm>0){
+        const target = mMass/mm;
+        s.row.dataset.targetMoles = String(target); // stash
+        highlightCell(s.row.querySelector('.mass'));
+        addFlow(`Target product ${name}: ${mMass} g / ${mm.toFixed(3)} = ${target.toFixed(4)} mol`);
+      }
+      break;
+    }
+    case 'backfillReactantsFromTarget': {
+      // Use the first product with a target moles
+      const prodRows = qa('#stoich tbody tr[data-type="product"]');
+      const targetRow = prodRows.find(r => Number.isFinite(safeParse(r.dataset.targetMoles)));
+      if(!targetRow){ addFlow('No product target provided → skipping backfill.'); break; }
+
+      const targetMoles = safeParse(targetRow.dataset.targetMoles);
+      const coeffP = parseInt(targetRow.dataset.coeff, 10);
+      const reactantRows = qa('#stoich tbody tr[data-type="reactant"]');
+
+      reactantRows.forEach(r=>{
+        const name = r.querySelector('.name').textContent.trim();
+        const coeffR = parseInt(r.dataset.coeff,10);
+        const molesCell = r.querySelector('.moles');
+        let n = safeParse(molesCell.textContent);
+        if(!Number.isFinite(n)){ // only fill missing ones
+          n = targetMoles * (coeffR/coeffP);
+          molesCell.textContent = n.toFixed(4);
+          const mm = safeParse(r.querySelector('.mm').textContent);
+          if(Number.isFinite(mm) && mm>0){
+            r.querySelector('.mass').textContent = (n*mm).toFixed(3);
+          }
+          highlightCell(molesCell);
+          addFlow(`Back-fill: to make ${targetMoles.toFixed(4)} mol product, need ${n.toFixed(4)} mol of ${name} (ratio ${coeffR}:${coeffP}).`);
+        }
+      });
+      break;
+    }
+    case 'limiting': {
+      const reactantRows = qa('#stoich tbody tr[data-type="reactant"]');
+      let best = null;
+      reactantRows.forEach(r=>{
+        const n = safeParse(r.querySelector('.moles').textContent);
+        const c = parseInt(r.dataset.coeff,10);
+        if(!Number.isFinite(n) || c<=0) return;
+        const ratio = n/c;
+        if(!best || ratio < best.ratio) best = { row:r, ratio, n, c };
+      });
+
+      if(!best){
+        addFlow('Limiting reagent cannot be determined: no reactant moles known.');
+        break;
+      }
+      limitingRow = best.row;
+      limitingRow.classList.add('limiting');
+      highlightCell(limitingRow.querySelector('.moles'));
+      const name = limitingRow.querySelector('.name').textContent.trim();
+      addFlow(`Limiting reagent: ${name} (moles/coeff = ${best.ratio.toFixed(4)}).`);
+      
+      reactantRows.forEach(r=>{
+        const name = r.querySelector('.name').textContent.trim();
+        const coeffR = parseInt(r.dataset.coeff,10);
+        const molesCell = r.querySelector('.moles');
+        let n = safeParse(molesCell.textContent);
+        if(!Number.isFinite(n)){ // only fill missing ones
+          n = targetMoles * (coeffR/coeffP);
+          molesCell.textContent = n.toFixed(4);
+          const mm = safeParse(r.querySelector('.mm').textContent);
+          if(Number.isFinite(mm) && mm>0){
+            r.querySelector('.mass').textContent = (n*mm).toFixed(3);
+          }
+          highlightCell(molesCell);
+          addFlow(`Back-fill: to make ${targetMoles.toFixed(4)} mol product, need ${n.toFixed(4)} mol of ${name} (ratio ${coeffR}:${coeffP}).`);
+        }
+      });
+
+      break;
+    }
+    case 'productFromLimiting': {
+      if(!limitingRow){ addFlow('Cannot compute products before determining the limiting reagent.'); break; }
+      const limN = safeParse(limitingRow.querySelector('.moles').textContent);
+      const limC = parseInt(limitingRow.dataset.coeff,10);
+      if(!Number.isFinite(limN) || limC<=0){ addFlow('Limiting reagent moles unavailable.'); break; }
+
+      const coeffP = parseInt(s.row.dataset.coeff,10);
+      const nameP = s.row.querySelector('.name').textContent.trim();
+      const mmP = molarMass(nameP);
+
+      const limRatio = limN/limC; // extent
+      const nProd = limRatio * coeffP;
+      s.row.querySelector('.mUsed').textContent = nProd.toFixed(4);
+      s.row.querySelector('.mm').textContent = Number.isFinite(mmP) ? mmP.toFixed(3) : '?';
+      if(Number.isFinite(mmP)) s.row.querySelector('.mass').textContent = (nProd*mmP).toFixed(3);
+
+      highlightCell(s.row.querySelector('.moles'));
+      addFlow(`Product ${nameP}: n = (limiting moles/coeff) × coeff = (${limN.toFixed(4)}/${limC}) × ${coeffP} = ${nProd.toFixed(4)} mol${Number.isFinite(mmP)?`, mass = ${(nProd*mmP).toFixed(3)} g`:''}.`);
+      break;
+    }
+  }
+
+  updateVisualization();
+  if(stepIndex >= steps.length){ q('#nextBtn').disabled = true; }
+}
+
+function updateVisualization(){
+  const viz = q('#viz');
+  viz.innerHTML = '';
+  const rows = qa('#stoich tbody tr');
+  // find max moles to scale bars
+  let max = 0;
+  rows.forEach(r=>{
+    const n = safeParse(r.querySelector('.moles').textContent);
+    if(Number.isFinite(n) && n>max) max=n;
+  });
+  if(max<=0) return;
+
+  const limName = limitingRow ? limitingRow.querySelector('.name').textContent.trim() : null;
+  const limC = limitingRow ? parseInt(limitingRow.dataset.coeff,10) : null;
+  const limN = limitingRow ? safeParse(limitingRow.querySelector('.moles').textContent) : null;
+  const limExtent = (limitingRow && Number.isFinite(limN) && limC>0) ? (limN/limC) : null;
+
+  rows.forEach(r=>{
+    const type = r.dataset.type;
+    const name = r.querySelector('.name').textContent.trim();
+    const c = parseInt(r.dataset.coeff,10);
+    const n = type==='reactant'? safeParse(r.querySelector('.moles').textContent) : safeParse(r.querySelector('.mUsed').textContent);
+    if(!Number.isFinite(n)) return;
+
+    const h = Math.max(4, n/max * 200); // keep tiny visible
+    const bar = document.createElement('div');
+    bar.className = `bar ${type==='reactant'?'reactant':'product'}`;
+    bar.style.height = `${h}px`;
+    bar.title = `${name}: ${n.toFixed(4)} mol`;
+
+    // If reactant and limiting known, show "used" portion vs available
+    if(type==='reactant' && limExtent!==null){
+      const used = limExtent * c; // stoichiometric amount actually consumed
+      const usedFrac = Math.min(1, used / Math.max(n, 1e-9));
+      if(name === limName) bar.classList.add('limiting');
+      if(used > 0){
+        const usedDiv = document.createElement('div');
+        usedDiv.className = 'bar excess-used';
+        usedDiv.style.height = `${h*usedFrac}px`;
+        usedDiv.style.width = '100%';
+        usedDiv.style.marginTop = `${h*(1-usedFrac)}px`;
+        usedDiv.textContent = '';
+        bar.appendChild(usedDiv);
+      }
+      r.querySelector('.mUsed').textContent = used.toFixed(3);
+    }
+
+    const cap = document.createElement('div');
+    cap.style.position='absolute';
+    viz.style.position='relative';
+    bar.style.position='relative';
+    const label = document.createElement('div');
+    label.style.position='absolute';
+    label.style.top = '-1px';
+    label.style.left='50%';
+    label.style.transform='translateX(-50%)';
+    label.style.whiteSpace='nowrap';
+    label.style.fontSize='12px';
+    label.textContent = name;
+    bar.appendChild(label);
+
+    viz.appendChild(bar);
+  });
+}
+
+/* ========== Controls ========== */
+function buildFromInput(){
+  clearFlow();
+  limitingRow = null;
+  stepIndex = 0;
+  q('#nextBtn').disabled = false;
+
+  const eqText = q('#equation').value.trim();
+  const eq = parseEquation(eqText);
+  buildTable(eq);
+  if(!q('#stoich')){ return; }
+  steps = makeSteps(eq);
+  addFlow('✅ Table built. Click “Next Step” to proceed.');
+}
+
+function resetStepper(){
+  if(!q('#stoich')) return;
+  clearFlow();
+  limitingRow = null;
+  stepIndex = 0;
+  q('#nextBtn').disabled = false;
+
+  // Clear computed cells; keep mass inputs the user typed
+  qa('#stoich tbody tr').forEach(r=>{
+    r.classList.remove('limiting');
+    r.querySelector('.mm').textContent='?';
+    r.querySelector('.moles').textContent='?';
+    r.querySelector('mUsed').textContent='?';
+    highlightCell(null);
+  });
+  q('#viz').innerHTML='';
+  const eq = parseEquation(q('#equation').value.trim());
+  steps = makeSteps(eq);
+  addFlow('Stepper reset. Ready to recompute.');
+}
+
+function newEquation(){
+  q('#equation').value = '';
+  q('#tableCard').innerHTML = '';
+  q('#viz').innerHTML='';
+  clearFlow();
+  steps = [];
+  stepIndex = 0;
+  q('#nextBtn').disabled = true;
+}
+
+/* ========== Wire up ========== */
+q('#buildBtn').addEventListener('click', buildFromInput);
+q('#nextBtn').addEventListener('click', nextStep);
+q('#resetBtn').addEventListener('click', resetStepper);
+q('#newBtn').addEventListener('click', newEquation);
+
+// Build initial example
+buildFromInput();
+</script>
+</body>
+</html>
